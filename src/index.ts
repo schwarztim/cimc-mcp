@@ -2,6 +2,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createServer } from "node:http";
 import { logout } from "./auth/session.js";
 
 // Tool imports
@@ -190,8 +192,24 @@ async function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-const transport = new StdioServerTransport();
-server.connect(transport).catch((err) => {
-  console.error("Failed to start CIMC MCP server:", err);
-  process.exit(1);
-});
+const useHttp = process.env.MCP_TRANSPORT === "http";
+
+if (useHttp) {
+  const port = parseInt(process.env.MCP_PORT || "21488", 10);
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+  });
+  await server.connect(transport);
+  const httpServer = createServer(async (req, res) => {
+    await transport.handleRequest(req, res);
+  });
+  httpServer.listen(port, "0.0.0.0", () => {
+    console.error(`CIMC MCP server listening on port ${port}`);
+  });
+} else {
+  const transport = new StdioServerTransport();
+  server.connect(transport).catch((err) => {
+    console.error("Failed to start CIMC MCP server:", err);
+    process.exit(1);
+  });
+}
