@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.thesun/
+*.tsbuildinfo
+BLUEPRINT.md
+CLAUDE.md
